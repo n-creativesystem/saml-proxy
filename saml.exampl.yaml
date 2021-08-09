@@ -1,0 +1,4 @@
+metadata_url: idp metadata url
+x509_cert: local ssl cert file
+x509_key: local ssl key file
+root_url: http(s)://domain:port/

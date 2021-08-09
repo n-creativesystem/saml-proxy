@@ -13,3 +13,12 @@
 
 # Dependency directories (remove the comment below to include it)
 # vendor/
+.DS_Store
+*.env
+saml.yaml
+ssl/*.crt
+ssl/*.key
+/bin
+/dist
+/envoy
+/__debug_bin

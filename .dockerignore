@@ -1,0 +1,9 @@
+.DS_Store
+*.env
+saml*.yaml
+.devcontainer
+.vscode
+/bin
+/ssl/*.crt
+/ssl/*.key
+/envoy
