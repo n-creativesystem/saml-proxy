@@ -2,7 +2,8 @@ name: Build and Deploy
 
 on:
   push:
-    tags: ['v[0-9]+.[0-9]+.[0-9]+']
+    tags:
+      - '*'
 
 # Workflowsで使用する環境変数を定義
 env:

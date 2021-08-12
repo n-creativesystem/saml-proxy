@@ -72,6 +72,7 @@ func RestLogger(opts ...HandlerLogOption) gin.HandlerFunc {
 		path := c.Request.URL.Path
 		raw := c.Request.URL.RawQuery
 		ctx := c.Request.Context()
+		mpHeader := c.Request.Header.Clone()
 		newCtx := ToContext(ctx, log)
 		*c.Request = *c.Request.WithContext(newCtx)
 		c.Next()
@@ -96,16 +97,31 @@ func RestLogger(opts ...HandlerLogOption) gin.HandlerFunc {
 		}
 
 		param.Path = path
-
-		log.WithFields(logrus.Fields{
-			"key":      "[SAML-PROXY]",
+		fields := logrus.Fields{
+			"key":      "SAML-PROXY",
 			"status":   param.StatusCode,
 			"latency":  param.Latency,
 			"clientIP": param.ClientIP,
 			"method":   param.Method,
 			"path":     param.Path,
 			"Ua":       param.Request.UserAgent(),
-		}).Info("incoming request")
+		}
+		if conf.logLevel == logrus.DebugLevel {
+			for key, value := range mpHeader {
+				if len(value) >= 0 {
+					log.Debugf("req_%s: %v", key, value)
+				}
+			}
+		}
+		if conf.logLevel == logrus.DebugLevel {
+			mpHeader := c.Writer.Header().Clone()
+			for key, value := range mpHeader {
+				if len(value) >= 0 {
+					log.Debugf("res_%s: %v", key, value)
+				}
+			}
+		}
+		log.WithFields(fields).Info("incoming request")
 		logPool.Put(log)
 	}
 }
