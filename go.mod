@@ -4,7 +4,7 @@ go 1.16
 
 require (
 	github.com/crewjam/saml v0.4.5
-	github.com/gin-gonic/gin v1.7.3
+	github.com/gin-gonic/gin v1.7.4
 	github.com/go-redis/redis/v8 v8.11.1
 	github.com/gorilla/securecookie v1.1.1
 	github.com/sirupsen/logrus v1.8.1
