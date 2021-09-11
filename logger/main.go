@@ -3,7 +3,6 @@ package logger
 import (
 	"context"
 	"io"
-	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -14,65 +13,29 @@ const (
 	TimestampFormat = "2006/01/02 - 15:04:05"
 )
 
-type handlerLogConfig struct {
-	logLevel logrus.Level
-}
-
-type HandlerLogOption func(conf *handlerLogConfig)
-
-func WithGinDebug(level logrus.Level) HandlerLogOption {
-	return func(conf *handlerLogConfig) {
-		conf.logLevel = level
-	}
-}
-
-type handlerLogger struct {
+type HandlerLogger struct {
 	*logrus.Logger
 }
 
-var _ io.Writer = (*handlerLogger)(nil)
+var _ io.Writer = (*HandlerLogger)(nil)
 
-var logPool *sync.Pool
-
-func init() {
-	logPool = &sync.Pool{
-		New: func() interface{} {
-			log := logrus.New()
-			log.SetFormatter(&logrus.TextFormatter{
-				TimestampFormat: TimestampFormat,
-			})
-			return &handlerLogger{
-				Logger: log,
-			}
-		},
-	}
-}
-
-func NewHandlerLogger() *handlerLogger {
-	return logPool.Get().(*handlerLogger)
-}
-
-func (l *handlerLogger) Write(p []byte) (n int, err error) {
+func (l *HandlerLogger) Write(p []byte) (n int, err error) {
 	l.Logger.Debug(string(p))
 	return len(p), nil
 }
 
-func RestLogger(opts ...HandlerLogOption) gin.HandlerFunc {
-	conf := &handlerLogConfig{
-		logLevel: logrus.InfoLevel,
-	}
-	for _, opt := range opts {
-		opt(conf)
-	}
+func RestLogger(log *logrus.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		log := NewHandlerLogger()
-		log.SetLevel(conf.logLevel)
-
 		start := time.Now()
 		path := c.Request.URL.Path
 		raw := c.Request.URL.RawQuery
 		ctx := c.Request.Context()
 		mpHeader := c.Request.Header.Clone()
+		for key, value := range mpHeader {
+			if len(value) >= 0 {
+				log.Debugf("req_%s: %v", key, value)
+			}
+		}
 		newCtx := ToContext(ctx, log)
 		*c.Request = *c.Request.WithContext(newCtx)
 		c.Next()
@@ -106,23 +69,13 @@ func RestLogger(opts ...HandlerLogOption) gin.HandlerFunc {
 			"path":     param.Path,
 			"Ua":       param.Request.UserAgent(),
 		}
-		if conf.logLevel == logrus.DebugLevel {
-			for key, value := range mpHeader {
-				if len(value) >= 0 {
-					log.Debugf("req_%s: %v", key, value)
-				}
-			}
-		}
-		if conf.logLevel == logrus.DebugLevel {
-			mpHeader := c.Writer.Header().Clone()
-			for key, value := range mpHeader {
-				if len(value) >= 0 {
-					log.Debugf("res_%s: %v", key, value)
-				}
+		mpHeader = c.Writer.Header().Clone()
+		for key, value := range mpHeader {
+			if len(value) >= 0 {
+				log.Debugf("res_%s: %v", key, value)
 			}
 		}
 		log.WithFields(fields).Info("incoming request")
-		logPool.Put(log)
 	}
 }
 
@@ -130,15 +83,13 @@ type ctxLoggerMarker struct{}
 
 var logKey = &ctxLoggerMarker{}
 
-func FromContext(ctx context.Context) *handlerLogger {
-	if val, ok := ctx.Value(logKey).(*handlerLogger); ok && val != nil {
+func FromContext(ctx context.Context) *logrus.Logger {
+	if val, ok := ctx.Value(logKey).(*logrus.Logger); ok && val != nil {
 		return val
 	}
-	log := NewHandlerLogger()
-	log.SetLevel(logrus.DebugLevel)
-	return log
+	return nil
 }
 
-func ToContext(ctx context.Context, log *handlerLogger) context.Context {
+func ToContext(ctx context.Context, log *logrus.Logger) context.Context {
 	return context.WithValue(ctx, logKey, log)
 }

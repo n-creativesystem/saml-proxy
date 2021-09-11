@@ -11,7 +11,9 @@
             "mode": "debug",
             "program": "${workspaceFolder}",
             "envFile": "${workspaceFolder}/.env",
-            "args": [],
+            "args": [
+                "run"
+            ],
             // "buildFlags": "-tags=embed"
         }
     ]

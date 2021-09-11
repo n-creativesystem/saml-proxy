@@ -10,11 +10,9 @@ import (
 	"github.com/n-creativesystem/saml-proxy/infra/redis"
 	"github.com/n-creativesystem/saml-proxy/internal/saml"
 	"github.com/n-creativesystem/saml-proxy/logger"
-	"github.com/sirupsen/logrus"
 )
 
-func New(opts ...Options) *gin.Engine {
-	log := logger.NewHandlerLogger()
+func New(opts ...Option) *gin.Engine {
 	var samlMiddle *samlsp.Middleware
 	conf := &config{}
 	for _, opt := range opts {
@@ -24,20 +22,18 @@ func New(opts ...Options) *gin.Engine {
 		Endpoints: []string{conf.redis},
 	})
 	if err != nil {
-		log.Warnf("redis: %v", err)
+		conf.log.Warnf("redis: %v", err)
 	}
-	loggerOpts := []logger.HandlerLogOption{}
 	if conf.debug {
-		log.SetLevel(logrus.DebugLevel)
-		loggerOpts = append(loggerOpts, logger.WithGinDebug(logrus.DebugLevel))
 		gin.SetMode(gin.DebugMode)
 	} else {
 		gin.SetMode(gin.ReleaseMode)
-		log.SetLevel(logrus.InfoLevel)
 	}
-	gin.DefaultWriter = log
+	gin.DefaultWriter = &logger.HandlerLogger{
+		Logger: conf.log,
+	}
 	r := gin.New()
-	r.Use(logger.RestLogger(loggerOpts...), gin.Recovery())
+	r.Use(logger.RestLogger(conf.log), gin.Recovery())
 	samlMiddle = saml.New(saml.WithFilename(conf.samlConfig), saml.WithRedis(con))
 	r.Any("/saml/*action", func(c *gin.Context) {
 		w := c.Writer
@@ -48,8 +44,14 @@ func New(opts ...Options) *gin.Engine {
 		w := c.Writer
 		r := c.Request
 		session, err := samlMiddle.Session.GetSession(r)
+		if err != nil {
+			conf.log.Errorf("Session error: %s", err)
+		}
 		if session != nil {
-			buf, _ := json.Marshal(session)
+			buf, err := json.Marshal(session)
+			if err != nil {
+				conf.log.Errorf("Session Json Marshal: %s", err)
+			}
 			strJwt := base64.RawURLEncoding.EncodeToString(buf)
 			c.Request = r.WithContext(samlsp.ContextWithSession(r.Context(), session))
 			w.Header().Add("x-saml-payload", strJwt)
@@ -61,9 +63,8 @@ func New(opts ...Options) *gin.Engine {
 			c.Abort()
 			return
 		}
-		log.Error(err)
+		conf.log.Error(err)
 		c.AbortWithStatus(http.StatusUnauthorized)
 	})
-
 	return r
 }
