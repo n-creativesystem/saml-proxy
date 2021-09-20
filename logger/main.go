@@ -24,22 +24,12 @@ func (l *HandlerLogger) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-func RestLogger(log *logrus.Logger) gin.HandlerFunc {
+func RestLogger() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
 		path := c.Request.URL.Path
 		raw := c.Request.URL.RawQuery
-		ctx := c.Request.Context()
-		mpHeader := c.Request.Header.Clone()
-		for key, value := range mpHeader {
-			if len(value) >= 0 {
-				log.Debugf("req_%s: %v", key, value)
-			}
-		}
-		newCtx := ToContext(ctx, log)
-		*c.Request = *c.Request.WithContext(newCtx)
 		c.Next()
-
 		param := gin.LogFormatterParams{
 			Request: c.Request,
 			Keys:    c.Keys,
@@ -69,13 +59,7 @@ func RestLogger(log *logrus.Logger) gin.HandlerFunc {
 			"path":     param.Path,
 			"Ua":       param.Request.UserAgent(),
 		}
-		mpHeader = c.Writer.Header().Clone()
-		for key, value := range mpHeader {
-			if len(value) >= 0 {
-				log.Debugf("res_%s: %v", key, value)
-			}
-		}
-		log.WithFields(fields).Info("incoming request")
+		logrus.WithFields(fields).Info("incoming request")
 	}
 }
 

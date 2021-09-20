@@ -13,7 +13,7 @@ services:
     ports:
       - 8443
   saml-proxy-dev:
-    build: .devcontainer
+    image: ncreativesystem/golang-developments:dev
     tty: true
     container_name: saml-proxy-dev
     volumes:

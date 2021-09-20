@@ -10,7 +10,5 @@ func main() {
 	logrus.SetFormatter(&logrus.JSONFormatter{
 		TimestampFormat: logger.TimestampFormat,
 	})
-	if err := cmd.Execute(); err != nil {
-		logrus.Fatalln(err)
-	}
+	cmd.Execute()
 }

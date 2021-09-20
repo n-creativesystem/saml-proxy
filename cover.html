@@ -1,0 +1,587 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>saml: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">github.com/n-creativesystem/saml-proxy/internal/saml/resources.go (79.5%)</option>
+				
+				<option value="file1">github.com/n-creativesystem/saml-proxy/internal/saml/saml.go (25.0%)</option>
+				
+				<option value="file2">github.com/n-creativesystem/saml-proxy/internal/saml/store.go (0.0%)</option>
+				
+				<option value="file3">github.com/n-creativesystem/saml-proxy/internal/saml/upstream.go (92.3%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package saml
+
+import (
+        "net/http"
+        "strings"
+
+        "github.com/n-creativesystem/saml-proxy/typ"
+        "github.com/ucarion/urlpath"
+)
+
+var allMethods = typ.StringSlice{
+        http.MethodGet,
+        http.MethodHead,
+        http.MethodPost,
+        http.MethodPut,
+        http.MethodPatch,
+        http.MethodDelete,
+        http.MethodConnect,
+        http.MethodOptions,
+        http.MethodTrace,
+}
+
+type Injection struct{}
+
+type Matching interface {
+        LookUp(method, url string, role string) bool
+        MultipleLookUp(method, url string, roles []string) bool
+}
+
+type BaseResource struct {
+        URL     string
+        Methods []string
+        Roles   []string
+}
+
+func NewBaseResource(url string, methods, roles []string) *BaseResource <span class="cov8" title="1">{
+        if len(methods) == 0 </span><span class="cov8" title="1">{
+                return nil
+        }</span>
+
+        <span class="cov8" title="1">if len(roles) == 0 </span><span class="cov8" title="1">{
+                return nil
+        }</span>
+
+        <span class="cov8" title="1">if len(url) == 0 </span><span class="cov8" title="1">{
+                return nil
+        }</span>
+        <span class="cov8" title="1">valueMethods := make([]string, 0, len(allMethods))
+        if len(methods) == 1 &amp;&amp; methods[0] == "*" </span><span class="cov8" title="1">{
+                valueMethods = append(valueMethods, allMethods.Copy()...)
+        }</span> else<span class="cov8" title="1"> {
+                for _, method := range methods </span><span class="cov8" title="1">{
+                        valueMethods = append(valueMethods, strings.ToUpper(method))
+                }</span>
+        }
+        <span class="cov8" title="1">valueRoles := make([]string, 0, len(roles))
+        valueRoles = append(valueRoles, roles...)
+
+        return &amp;BaseResource{
+                URL:     url,
+                Methods: valueMethods,
+                Roles:   valueRoles,
+        }</span>
+}
+
+type BaseResources []BaseResource
+
+func (r BaseResources) ToResources() Matching <span class="cov8" title="1">{
+        methods := make(urlPathResources)
+        for _, resource := range r </span><span class="cov8" title="1">{
+                sliceString := typ.StringSlice(resource.Roles)
+                path := newPathRole(resource.URL, sliceString.ToMap())
+                for _, method := range resource.Methods </span><span class="cov8" title="1">{
+                        method = strings.ToUpper(method)
+                        methods[method] = append(methods[method], path)
+                }</span>
+        }
+        <span class="cov8" title="1">return urlPathResources(methods)</span>
+}
+
+type pathRole struct {
+        path  urlpath.Path
+        roles typ.IMap
+}
+
+func (p *pathRole) lookup(path string) bool <span class="cov8" title="1">{
+        _, ok := p.path.Match(path)
+        return ok
+}</span>
+
+func (p *pathRole) exists(role string) bool <span class="cov8" title="1">{
+        return p.roles.Exists(role)
+}</span>
+
+func newPathRole(path string, roles typ.IMap) pathRole <span class="cov8" title="1">{
+        return pathRole{
+                path:  urlpath.New(path),
+                roles: roles,
+        }
+}</span>
+
+type urlPathResources map[string][]pathRole
+
+func (r urlPathResources) getPathRole(method, url string) (pathRole, bool) <span class="cov8" title="1">{
+        method = strings.ToUpper(method)
+        if resources, ok := r[method]; ok </span><span class="cov8" title="1">{
+                for _, resource := range resources </span><span class="cov8" title="1">{
+                        ok := resource.lookup(url)
+                        if ok </span><span class="cov8" title="1">{
+                                return resource, true
+                        }</span>
+                }
+        }
+        <span class="cov0" title="0">return pathRole{}, false</span>
+}
+
+func (r urlPathResources) LookUp(method, url string, role string) bool <span class="cov8" title="1">{
+        resource, ok := r.getPathRole(method, url)
+        if !ok </span><span class="cov0" title="0">{
+                return false
+        }</span>
+        <span class="cov8" title="1">return resource.exists(role)</span>
+}
+
+func (r urlPathResources) MultipleLookUp(method, url string, roles []string) bool <span class="cov0" title="0">{
+        resource, ok := r.getPathRole(method, url)
+        if !ok </span><span class="cov0" title="0">{
+                return false
+        }</span>
+        <span class="cov0" title="0">for _, role := range roles </span><span class="cov0" title="0">{
+                if resource.exists(role) </span><span class="cov0" title="0">{
+                        return true
+                }</span>
+        }
+        <span class="cov0" title="0">return false</span>
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package saml
+
+import (
+        "crypto/rsa"
+        "crypto/tls"
+        "crypto/x509"
+        "net/http"
+        "net/url"
+        "path"
+
+        "github.com/crewjam/saml"
+        "github.com/crewjam/saml/samlsp"
+        "github.com/n-creativesystem/saml-proxy/infra/redis"
+        "github.com/n-creativesystem/saml-proxy/internal/options"
+        "github.com/n-creativesystem/saml-proxy/utils"
+        "github.com/sirupsen/logrus"
+        "github.com/spf13/viper"
+)
+
+const defaultLogoutURL = "/logout"
+
+type viperConfig struct {
+        MetadataURL string           `json:"metadataUrl"`
+        X509Cert    string           `json:"x509Cert"`
+        X509Key     string           `json:"x509Key"`
+        Redirect    options.Redirect `json:"redirect"`
+        // IdpLogout     string           `json:"idpLogout"`
+        CookieName    string           `json:"cookieName"`
+        Upstream      options.Upstream `json:"upstream"`
+        NamedIdFormat string           `json:"namedIdFormat"`
+        LogoutURL     string           `json:"logoutUrl"`
+}
+
+func newViperConfig() (*viperConfig, error) <span class="cov8" title="1">{
+        baseConfig := viperConfig{}
+        if err := utils.LoadYAML(viper.GetString("saml-config"), &amp;baseConfig); err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">return &amp;baseConfig, nil</span>
+}
+
+type redirect struct {
+        root   string
+        logout string
+}
+
+type Config struct {
+        metadataURL string
+        x509Cert    string
+        x509Key     string
+        redirect    redirect
+        // idpLogout    string
+        cookieName   string
+        nameIdFormat string
+        logoutURL    string
+        upstream     upstream
+}
+
+func (c *Config) GetProxyURL() *url.URL <span class="cov0" title="0">{
+        return c.upstream.url
+}</span>
+
+func (c *Config) GetResources() Matching <span class="cov0" title="0">{
+        return c.upstream.resources
+}</span>
+
+func (c *Config) GetMapping() options.Mapping <span class="cov0" title="0">{
+        return c.upstream.mapping
+}</span>
+
+func (c *Config) InSecureSkipVerify() bool <span class="cov0" title="0">{
+        return !c.upstream.inSecureSkipTlsVerify
+}</span>
+
+func (c *Config) GetInjectRequestHeaders() []options.Header <span class="cov0" title="0">{
+        return c.upstream.injectRequestHeaders
+}</span>
+
+func NewConfig() *Config <span class="cov8" title="1">{
+        baseConfig, err := newViperConfig()
+        if err != nil </span><span class="cov0" title="0">{
+                logrus.Fatalln(err)
+        }</span>
+        <span class="cov8" title="1">redirectLogout := "/"
+        if baseConfig.Redirect.LogoutRedirect != "" </span><span class="cov8" title="1">{
+                u, err := url.Parse(baseConfig.Redirect.LogoutRedirect)
+                if err != nil </span><span class="cov0" title="0">{
+                        logrus.Fatalln(err)
+                }</span>
+                <span class="cov8" title="1">redirectLogout = u.RequestURI()</span>
+        }
+        <span class="cov8" title="1">if baseConfig.LogoutURL == "" </span><span class="cov8" title="1">{
+                baseConfig.LogoutURL = defaultLogoutURL
+        }</span>
+        <span class="cov8" title="1">logoutURL := path.Join("/saml", baseConfig.LogoutURL)
+        config := &amp;Config{
+                metadataURL: baseConfig.MetadataURL,
+                x509Cert:    baseConfig.X509Cert,
+                x509Key:     baseConfig.X509Key,
+                redirect: redirect{
+                        root:   baseConfig.Redirect.RootURL,
+                        logout: redirectLogout,
+                },
+                cookieName:   baseConfig.CookieName,
+                nameIdFormat: baseConfig.NamedIdFormat,
+                logoutURL:    logoutURL,
+                upstream:     newUpstream(baseConfig.Upstream),
+        }
+        return config</span>
+}
+
+type Middleware struct {
+        *samlsp.Middleware
+        config *Config
+}
+
+var _ http.Handler = (*Middleware)(nil)
+
+func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+        if r.URL.Path == m.config.logoutURL </span><span class="cov0" title="0">{
+                if err := m.Middleware.Session.DeleteSession(w, r); err != nil </span><span class="cov0" title="0">{
+                        w.WriteHeader(http.StatusInternalServerError)
+                        _, _ = w.Write([]byte(err.Error()))
+                }</span> else<span class="cov0" title="0"> {
+                        http.Redirect(w, r, m.config.redirect.logout, http.StatusFound)
+                }</span>
+        } else<span class="cov0" title="0"> {
+                m.Middleware.ServeHTTP(w, r)
+        }</span>
+}
+
+func New(config *Config, con redis.Redis) *Middleware <span class="cov0" title="0">{
+        sp := ServiceProvider(config, con)
+        return &amp;Middleware{
+                Middleware: sp,
+                config:     config,
+        }
+}</span>
+
+func ServiceProvider(config *Config, con redis.Redis) *samlsp.Middleware <span class="cov0" title="0">{
+        type certificate struct {
+                privateKey  *rsa.PrivateKey
+                certificate *x509.Certificate
+        }
+        var cert certificate
+        if config.x509Cert != "" &amp;&amp; config.x509Key != "" </span><span class="cov0" title="0">{
+                keyPair, err := tls.LoadX509KeyPair(config.x509Cert, config.x509Key)
+                if err != nil </span><span class="cov0" title="0">{
+                        panic(err)</span>
+                }
+                <span class="cov0" title="0">keyPair.Leaf, err = x509.ParseCertificate(keyPair.Certificate[0])
+                if err != nil </span><span class="cov0" title="0">{
+                        panic(err)</span>
+                }
+                <span class="cov0" title="0">cert.privateKey = keyPair.PrivateKey.(*rsa.PrivateKey)
+                cert.certificate = keyPair.Leaf</span>
+        }
+        <span class="cov0" title="0">idpMetadataURL, err := url.Parse(config.metadataURL)
+        if err != nil </span><span class="cov0" title="0">{
+                panic(err)</span>
+        }
+        <span class="cov0" title="0">loginRedirect, err := url.Parse(config.redirect.root)
+        if err != nil </span><span class="cov0" title="0">{
+                panic(err)</span>
+        }
+
+        <span class="cov0" title="0">opts := samlsp.Options{
+                URL:            *loginRedirect,
+                Key:            cert.privateKey,
+                Certificate:    cert.certificate,
+                IDPMetadataURL: idpMetadataURL,
+        }
+        samlSP, err := samlsp.New(opts)
+        samlSP.Session = NewSessionProvider(config, opts, con)
+        if err != nil </span><span class="cov0" title="0">{
+                panic(err)</span>
+        }
+        <span class="cov0" title="0">switch config.nameIdFormat </span>{
+        case "unspecified":<span class="cov0" title="0">
+                samlSP.ServiceProvider.AuthnNameIDFormat = saml.UnspecifiedNameIDFormat</span>
+        case "transient":<span class="cov0" title="0">
+                samlSP.ServiceProvider.AuthnNameIDFormat = saml.TransientNameIDFormat</span>
+        case "email":<span class="cov0" title="0">
+                samlSP.ServiceProvider.AuthnNameIDFormat = saml.EmailAddressNameIDFormat</span>
+        case "persistent":<span class="cov0" title="0">
+                samlSP.ServiceProvider.AuthnNameIDFormat = saml.PersistentNameIDFormat</span>
+        default:<span class="cov0" title="0">
+                samlSP.ServiceProvider.AuthnNameIDFormat = saml.NameIDFormat(config.nameIdFormat)</span>
+        }
+        <span class="cov0" title="0">return samlSP</span>
+}
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">package saml
+
+import (
+        "encoding/base32"
+        "net"
+        "net/http"
+        "strings"
+        "time"
+
+        "github.com/crewjam/saml"
+        "github.com/crewjam/saml/samlsp"
+        "github.com/gorilla/securecookie"
+        "github.com/n-creativesystem/saml-proxy/infra/redis"
+)
+
+const defaultCookiename = "saml-token"
+
+type samlStore struct {
+        con    redis.Redis
+        cookie samlsp.CookieSessionProvider
+}
+
+var _ samlsp.SessionProvider = (*samlStore)(nil)
+
+func NewSessionProvider(config *Config, opts samlsp.Options, con redis.Redis) samlsp.SessionProvider <span class="cov0" title="0">{
+        if opts.CookieName = config.cookieName; opts.CookieName == "" </span><span class="cov0" title="0">{
+                opts.CookieName = defaultCookiename
+        }</span>
+        <span class="cov0" title="0">cookie := samlsp.DefaultSessionProvider(opts)
+        if con == nil </span><span class="cov0" title="0">{
+                return cookie
+        }</span>
+        <span class="cov0" title="0">return &amp;samlStore{
+                con:    con,
+                cookie: cookie,
+        }</span>
+}
+
+func (s *samlStore) CreateSession(w http.ResponseWriter, r *http.Request, assertion *saml.Assertion) error <span class="cov0" title="0">{
+        if domain, _, err := net.SplitHostPort(s.cookie.Domain); err == nil </span><span class="cov0" title="0">{
+                s.cookie.Domain = domain
+        }</span>
+        <span class="cov0" title="0">session, err := s.cookie.Codec.New(assertion)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov0" title="0">sessionId := strings.TrimRight(base32.StdEncoding.EncodeToString(securecookie.GenerateRandomKey(32)), "=")
+        value, err := s.cookie.Codec.Encode(session)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov0" title="0">err = s.con.SetEX(r.Context(), sessionId, value, s.cookie.MaxAge).Err()
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        <span class="cov0" title="0">http.SetCookie(w, &amp;http.Cookie{
+                Name:     s.cookie.Name,
+                Domain:   s.cookie.Domain,
+                Value:    sessionId,
+                MaxAge:   int(s.cookie.MaxAge.Seconds()),
+                HttpOnly: s.cookie.HTTPOnly,
+                Secure:   s.cookie.Secure || r.URL.Scheme == "https",
+                SameSite: s.cookie.SameSite,
+                Path:     "/",
+        })
+        return nil</span>
+}
+
+func (s *samlStore) DeleteSession(w http.ResponseWriter, r *http.Request) error <span class="cov0" title="0">{
+        cookie, err := r.Cookie(s.cookie.Name)
+        if err == http.ErrNoCookie </span><span class="cov0" title="0">{
+                return nil
+        }</span>
+        <span class="cov0" title="0">if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov0" title="0">err = s.con.Del(r.Context(), cookie.Value).Err()
+        cookie.Value = ""
+        cookie.Expires = time.Unix(1, 0) // past time as close to epoch as possible, but not zero time.Time{}
+        cookie.Path = "/"
+        cookie.Domain = s.cookie.Domain
+        http.SetCookie(w, cookie)
+        return err</span>
+}
+
+func (s *samlStore) GetSession(r *http.Request) (samlsp.Session, error) <span class="cov0" title="0">{
+        cookie, err := r.Cookie(s.cookie.Name)
+        if err == http.ErrNoCookie </span><span class="cov0" title="0">{
+                return nil, samlsp.ErrNoSession
+        }</span> else<span class="cov0" title="0"> if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov0" title="0">value, err := s.con.Get(r.Context(), cookie.Value).Result()
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, samlsp.ErrNoSession
+        }</span>
+        <span class="cov0" title="0">session, err := s.cookie.Codec.Decode(value)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, samlsp.ErrNoSession
+        }</span>
+        <span class="cov0" title="0">return session, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file3" style="display: none">package saml
+
+import (
+        "net/url"
+
+        "github.com/n-creativesystem/saml-proxy/internal/options"
+        "github.com/sirupsen/logrus"
+)
+
+type upstream struct {
+        url                   *url.URL
+        mapping               options.Mapping
+        inSecureSkipTlsVerify bool
+        resources             Matching
+        injectRequestHeaders  []options.Header
+}
+
+func newUpstream(o options.Upstream) upstream <span class="cov8" title="1">{
+        var u *url.URL
+        var err error
+        if proxyURL := o.URL; proxyURL != "" </span><span class="cov8" title="1">{
+                u, err = url.Parse(proxyURL)
+                if err != nil </span><span class="cov0" title="0">{
+                        logrus.Fatalln(err)
+                }</span>
+        }
+        <span class="cov8" title="1">baseResources := make(BaseResources, 0, len(o.Resources))
+        for _, resource := range o.Resources </span><span class="cov8" title="1">{
+                value := NewBaseResource(resource.URL, resource.Methods, resource.Roles)
+                if value != nil </span><span class="cov8" title="1">{
+                        baseResources = append(baseResources, *value)
+                }</span>
+        }
+        <span class="cov8" title="1">upstream := upstream{
+                url:                   u,
+                mapping:               o.Mapping,
+                inSecureSkipTlsVerify: o.InSecureSkipTlsVerify,
+                resources:             baseResources.ToResources(),
+                injectRequestHeaders:  options.Headers(o.InjectRequestHeaders).Clone(),
+        }
+        return upstream</span>
+}
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

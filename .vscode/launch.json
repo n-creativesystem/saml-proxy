@@ -12,7 +12,11 @@
             "program": "${workspaceFolder}",
             "envFile": "${workspaceFolder}/.env",
             "args": [
-                "run"
+                "run",
+                "--cert",
+                "ssl/svr01.crt",
+                "--key",
+                "ssl/svr01.key"
             ],
             // "buildFlags": "-tags=embed"
         }

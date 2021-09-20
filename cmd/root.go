@@ -18,8 +18,8 @@ var (
 	}
 )
 
-func Execute() error {
-	return rootCmd.Execute()
+func Execute() {
+	rootCmd.Execute()
 }
 
 func signal(ctx context.Context) error {

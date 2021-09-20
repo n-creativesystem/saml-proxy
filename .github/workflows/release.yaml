@@ -17,18 +17,18 @@ jobs:
     name: Setup, Build, Publish
     runs-on: ubuntu-latest
     steps:
+      - name: set env
+        run: |
+          echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+          echo "IDP_ADDR=${AUTH0_DOMAIN}" >> $GITHUB_ENV
+
       - name: Checkout
         uses: actions/checkout@v2
-
-      - name: version
-        id: version
-        run: |
-          echo ::set-output name=VERSION::${GITHUB_REF#refs/tags/}
 
       # Docker imageのビルド
       - name: Build with Docker
         run: |
-          VERSION=${{ steps.version.outputs.VERSION }}
+          VERSION=${{ env.VERSION }}
           IMAGE="${REPOSITORY_NAMESPACE}/${IMAGE_NAME}"
           make build/docker IMAGE_NAME="${IMAGE}:${VERSION}"
           docker tag "${IMAGE}:${VERSION}" "${IMAGE}:latest"
@@ -36,7 +36,7 @@ jobs:
       # ビルド済みのイメージをGithub PackagesへPush
       - name: Push the image to Github Packages
         run: |
-          VERSION=${{ steps.version.outputs.VERSION }}
+          VERSION=${{ env.VERSION }}
           echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
           IMAGE="${REPOSITORY_NAMESPACE}/${IMAGE_NAME}"
           docker push "${IMAGE}:${VERSION}"

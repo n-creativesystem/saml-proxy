@@ -1,0 +1,20 @@
+metadataUrl: idp metadata url
+x509Cert: local ssl cert file
+x509Key: local ssl key file
+redirect:
+  rootURL: http(s)://domain:port/
+upstream:
+  url: proxy server url
+  mapping: saml schema mapping key
+  resources:
+    - url: proxy url
+      methods:
+        - methods
+        - "*" is http.Methods
+      roles:
+        - Allowed roles
+  injectRequestHeaders:
+    - name: X-Forwarded-xxx
+      values:
+        - claim: claimName
+namedIdFormat: saml name id format

@@ -7,10 +7,10 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/n-creativesystem/saml-proxy/logger"
 	"github.com/n-creativesystem/saml-proxy/server"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -21,10 +21,11 @@ type webServer struct {
 }
 
 var (
-	srvConf    webServer
-	debug      bool
-	samlConfig string
-	redis      string
+	srvConf     webServer
+	debug       bool
+	samlConfig  string
+	redis       string
+	metricsName string
 )
 
 var (
@@ -33,17 +34,12 @@ var (
 		Short: "",
 		Long:  "",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			log := logrus.New()
-			log.SetFormatter(&logrus.JSONFormatter{
-				TimestampFormat: logger.TimestampFormat,
-			})
-
 			if debug {
-				log.SetLevel(logrus.DebugLevel)
+				logrus.SetLevel(logrus.DebugLevel)
 			}
 			ctx := cmd.Context()
-			if err := run(ctx, log); err != nil {
-				log.Fatalln(err)
+			if err := run(ctx); err != nil {
+				logrus.Fatalln(err)
 			}
 
 			return nil
@@ -53,15 +49,19 @@ var (
 
 func init() {
 	rootCmd.AddCommand(runCmd)
-	runCmd.PersistentFlags().BoolVar(&debug, "debug", true, "debug mode")
-	runCmd.PersistentFlags().StringVar(&samlConfig, "samlConfig", "saml.yaml", "saml configuration file name")
-	runCmd.PersistentFlags().IntVar(&srvConf.port, "httpPort", 8080, "http port")
-	runCmd.PersistentFlags().StringVar(&redis, "redis", "", "redis config")
-	runCmd.PersistentFlags().StringVar(&srvConf.cert, "cert", "", "ssl certification file name")
-	runCmd.PersistentFlags().StringVar(&srvConf.key, "key", "", "ssl key file name")
+	runFlags := runCmd.PersistentFlags()
+	runFlags.BoolVar(&debug, "debug", true, "debug mode")
+	runFlags.StringVar(&samlConfig, "samlConfig", "saml", "saml configuration file name")
+	runFlags.IntVar(&srvConf.port, "httpPort", 8080, "http port")
+	runFlags.StringVar(&redis, "redis", "", "redis config")
+	runFlags.StringVar(&srvConf.cert, "cert", "", "ssl certification file name")
+	runFlags.StringVar(&srvConf.key, "key", "", "ssl key file name")
+	runFlags.StringVar(&metricsName, "metrics-name", "saml_proxy", "prometheus metrics prefix name")
+	_ = viper.BindPFlag("saml-config", runFlags.Lookup("samlConfig"))
+	_ = viper.BindPFlag("metrics-name", runFlags.Lookup("metrics-name"))
 }
 
-func run(ctx context.Context, log *logrus.Logger) error {
+func run(ctx context.Context) error {
 	var (
 		eg         *errgroup.Group
 		httpLister net.Listener
@@ -82,7 +82,7 @@ func run(ctx context.Context, log *logrus.Logger) error {
 	}
 	eg.Go(func() error {
 		logrus.Infof("REST Server: %s", httpAddr)
-		return runRest(ctx, httpLister, log)
+		return runRest(ctx, httpLister)
 	})
 	eg.Go(func() error {
 		return signal(ctx)
@@ -94,9 +94,8 @@ func run(ctx context.Context, log *logrus.Logger) error {
 	return eg.Wait()
 }
 
-func runRest(ctx context.Context, li net.Listener, log *logrus.Logger) error {
+func runRest(ctx context.Context, li net.Listener) error {
 	opts := []server.Option{
-		server.WithLogger(log),
 		server.WithSAMLConfig(samlConfig),
 	}
 	if debug {

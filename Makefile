@@ -10,6 +10,7 @@ build: $(SRCS)
 	go build $(LDFLAGS) -o bin/$(NAME)
 build/docker:
 	docker build -t ${IMAGE_NAME} .
+
 .PHONY: ssl
 ssl:
-	@openssl req -x509 -nodes -days 3650 -newkey rsa:2048 -keyout ssl/server.key -out ssl/server.crt -subj "/C=JP/ST=Osaka/L=Osaka/O=NCreativeSystem, Inc./CN=localhost"
+	cd ssl && go run ./ ca && go run ./ server

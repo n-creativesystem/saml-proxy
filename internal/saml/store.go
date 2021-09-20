@@ -13,7 +13,7 @@ import (
 	"github.com/n-creativesystem/saml-proxy/infra/redis"
 )
 
-const name = "saml-token"
+const defaultCookiename = "saml-token"
 
 type samlStore struct {
 	con    redis.Redis
@@ -22,8 +22,10 @@ type samlStore struct {
 
 var _ samlsp.SessionProvider = (*samlStore)(nil)
 
-func newSessionProvider(opts samlsp.Options, con redis.Redis) samlsp.SessionProvider {
-	opts.CookieName = name
+func NewSessionProvider(config *Config, opts samlsp.Options, con redis.Redis) samlsp.SessionProvider {
+	if opts.CookieName = config.cookieName; opts.CookieName == "" {
+		opts.CookieName = defaultCookiename
+	}
 	cookie := samlsp.DefaultSessionProvider(opts)
 	if con == nil {
 		return cookie
@@ -53,7 +55,7 @@ func (s *samlStore) CreateSession(w http.ResponseWriter, r *http.Request, assert
 	}
 
 	http.SetCookie(w, &http.Cookie{
-		Name:     name,
+		Name:     s.cookie.Name,
 		Domain:   s.cookie.Domain,
 		Value:    sessionId,
 		MaxAge:   int(s.cookie.MaxAge.Seconds()),
